@@ -14,8 +14,9 @@ class AimbotApp:
         self.root.geometry("1100x700")
         self.root.configure(bg="#0f0f0f")
 
-        self.x_data = [0, 5, 10, 15]
-        self.y_data = [0, 4, 7, 9]
+        self.x_data = [] # Start empty
+        self.y_data = []
+        self.coeffs = None # Store polynomial coefficients
 
         self.sidebar = tk.Frame(root, width=250, bg="#1a1a1a", padx=20, pady=20)
         self.sidebar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -32,16 +33,39 @@ class AimbotApp:
         tk.Label(self.sidebar, text="SYSTEM STATUS", font=("Consolas", 18, "bold"), 
                  fg="#00fa9a", bg="#1a1a1a").pack(pady=(0, 20))
 
-        tk.Label(self.sidebar, text="INPUT SYSTEM\nActive", 
-                 font=("Consolas", 10), fg="#888", bg="#1a1a1a", justify=tk.LEFT).pack(pady=10)
+        # --- MANUAL INPUT SECTION ---
+        input_frame = tk.Frame(self.sidebar, bg="#1a1a1a")
+        input_frame.pack(fill=tk.X, pady=10)
 
-        btn_config = {"font": ("Segoe UI", 11, "bold"), "bd": 0, "padx": 10, "pady": 8, "cursor": "hand2"}
-        
+        tk.Label(input_frame, text="MANUAL INPUT:", font=("Consolas", 10, "bold"), fg="#888", bg="#1a1a1a").pack(anchor="w")
+
+        # X Input
+        row1 = tk.Frame(input_frame, bg="#1a1a1a")
+        row1.pack(fill=tk.X, pady=2)
+        tk.Label(row1, text="X:", font=("Consolas", 10), fg="white", bg="#1a1a1a", width=3).pack(side=tk.LEFT)
+        self.entry_x = tk.Entry(row1, bg="#333", fg="white", insertbackground="white", bd=0, font=("Consolas", 10))
+        self.entry_x.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        # Y Input
+        row2 = tk.Frame(input_frame, bg="#1a1a1a")
+        row2.pack(fill=tk.X, pady=2)
+        tk.Label(row2, text="Y:", font=("Consolas", 10), fg="white", bg="#1a1a1a", width=3).pack(side=tk.LEFT)
+        self.entry_y = tk.Entry(row2, bg="#333", fg="white", insertbackground="white", bd=0, font=("Consolas", 10))
+        self.entry_y.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        # Add Button
+        btn_config = {"font": ("Segoe UI", 10, "bold"), "bd": 0, "padx": 10, "pady": 5, "cursor": "hand2"}
+        tk.Button(input_frame, text="[ INJECT DATA ]", command=self.add_manual_point, 
+                  fg="#1a1a1a", bg="#00fa9a", **btn_config).pack(fill=tk.X, pady=10)
+
+        # --- CONTROLS ---
+        tk.Frame(self.sidebar, height=2, bg="#333").pack(fill=tk.X, pady=10)
+
         tk.Button(self.sidebar, text="[ REBOOT SYSTEM ]", command=self.reset_data, 
-                  fg="white", bg="#d63340", **btn_config).pack(fill=tk.X, pady=10)
+                  fg="white", bg="#d63340", **btn_config).pack(fill=tk.X, pady=5)
         
         tk.Button(self.sidebar, text="[ ACCESS ARCHIVES ]", command=self.show_math_explanation, 
-                  fg="#1a1a1a", bg="#00fa9a", **btn_config).pack(fill=tk.X, pady=10)
+                  fg="#1a1a1a", bg="#05d9e8", **btn_config).pack(fill=tk.X, pady=5)
 
         tk.Frame(self.sidebar, height=2, bg="#333").pack(fill=tk.X, pady=20)
 
@@ -52,6 +76,22 @@ class AimbotApp:
         self.eq_label = tk.Label(self.sidebar, textvariable=self.eq_var, font=("Consolas", 10), 
                                  fg="#00fa9a", bg="#000", padx=10, pady=15, wraplength=200, justify=tk.LEFT)
         self.eq_label.pack(fill=tk.X)
+
+    def add_manual_point(self):
+        try:
+            x_val = float(self.entry_x.get())
+            y_val = float(self.entry_y.get())
+            
+            self.x_data.append(x_val)
+            self.y_data.append(y_val)
+            
+            # Clear inputs
+            self.entry_x.delete(0, tk.END)
+            self.entry_y.delete(0, tk.END)
+            
+            self.update_plot()
+        except ValueError:
+            messagebox.showerror("Input Error", "Please enter valid numeric coordinates.")
 
     def _create_plot(self):
         self.fig, self.ax = plt.subplots(figsize=(8, 6))
@@ -71,10 +111,12 @@ class AimbotApp:
     def reset_data(self):
         self.x_data = []
         self.y_data = []
+        self.coeffs = None
         self.update_plot()
 
     def update_plot(self):
         self.ax.clear()
+        self.coeffs = None # Reset coeffs before calculation
         
         # Grid and Visuals
         self.ax.grid(True, linestyle='--', color='#333333', alpha=0.5)
@@ -130,7 +172,7 @@ class AimbotApp:
         self.canvas.draw()
 
     def show_math_explanation(self):
-        if len(self.x_data) < 3:
+        if self.coeffs is None or len(self.x_data) < 3:
             messagebox.showinfo("Insufficient Data", "Add at least 3 points to generate the calculation details.")
             return
 
